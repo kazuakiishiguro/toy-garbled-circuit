@@ -225,3 +225,34 @@ void oblivious_transfer(const unsigned char keys[2][16], uint8_t bit, unsigned c
   BN_free(a_pub_inv_a_priv);
   BN_CTX_free(ctx);
 }
+
+/**
+ * Generates a garbled circuit for the given gate using provided keys.
+ * @param keys 2x2 array of 16-byte keys.
+ * @param gate The logic gate ("AND" or "XOR").
+ * @param garbled_values Output array of 4 encrypted 16-byte blocks.
+ */
+void garbled_circuit(const unsigned char keys[2][2][16], const char *gate, unsigned char garbled_values[4][16]) {
+    uint8_t table[4][3];
+    truth_table(gate, table);
+
+    // Generate encrypted values
+    for (int i = 0; i < 4; ++i) {
+        unsigned char encryption_key[16];
+        key_derivation(keys[0][i >> 1], keys[1][i & 1], encryption_key);
+
+        unsigned char padded_bit[16];
+        pad(table[i][2], padded_bit);
+
+        encryption(encryption_key, padded_bit, garbled_values[i]);
+    }
+
+    // Shuffle garbled_values
+    for (int i = 3; i > 0; --i) {
+        int j = rand() % (i + 1);
+        unsigned char temp[16];
+        memcpy(temp, garbled_values[i], 16);
+        memcpy(garbled_values[i], garbled_values[j], 16);
+        memcpy(garbled_values[j], temp, 16);
+    }
+}
