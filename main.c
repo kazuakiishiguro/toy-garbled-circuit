@@ -2,6 +2,7 @@
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <openssl/bn.h>
+#include <openssl/rand.h>
 
 /**
  * Key derivation function.
@@ -120,5 +121,20 @@ void truth_table(const char *gate, uint8_t table[4][3]) {
   } else {
     fprintf(stderr, "Invalid gate type\n");
     exit(EXIT_FAILURE);
+  }
+}
+
+/**
+ * Generates random keys.
+ * @param keys Output 2x2 array of 16-byte keys.
+ */
+void generate_random_keys(unsigned char keys[2][2][16]) {
+  for (int i = 0; i < 2; ++i) {
+    for (int j = 0; j < 2; ++j) {
+      if (RAND_bytes(keys[i][j], 16) != 1) {
+        fprintf(stderr, "Error generating random bytes\n");
+        exit(EXIT_FAILURE);
+      }
+    }
   }
 }
