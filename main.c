@@ -1,5 +1,7 @@
 #include <string.h>
 #include <openssl/evp.h>
+#include <openssl/aes.h>
+#include <openssl/bn.h>
 
 /**
  * Key derivation function.
@@ -53,4 +55,42 @@ int unpad(const unsigned char padded_bit[16]) {
       return -1;
   }
   return padded_bit[0];
+}
+
+/* TODO: Implement Encryption and Decryption functions */
+
+/**
+ * Hash function.
+ * Hashes a big number using SHAEK128 to produce a 16-byte output.
+ * @param message The big number to hash.
+ * @param result Output 16-byte hash.
+ */
+void hash_message(const BIGNUM *message, unsigned char result[16]) {
+  int message_len = BN_num_bytes(message);
+  unsigned char *message_bytes = malloc(message_len);
+  if (message_bytes == NULL) {
+    fprintf(stderr, "Memory allocation error\n");
+    exit(EXIT_FAILURE);
+  }
+
+  BN_bn2bin(message, message_bytes);
+
+  EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+  if (mdctx == NULL) {
+    fprintf(stderr, "Error initializing EVP_MD_CTX\n");
+    free(message_bytes);
+    exit(EXIT_FAILURE);
+  }
+
+  if (EVP_DigestInit_ex(mdctx, EVP_shake128(), NULL) != 1 ||
+      EVP_DigestUpdate(mdctx, message_bytes, message_len) != 1 ||
+      EVP_DigestFinalXOF(mdctx, result, 16) != 1) {
+    fprintf(stderr, "Error during SHAKE128 hasing\n");
+    EVP_MD_CTX_free(mdctx);
+    free(message_bytes);
+    exit(EXIT_FAILURE);
+  }
+
+  EVP_MD_CTX_free(mdctx);
+  free(message_bytes);
 }
