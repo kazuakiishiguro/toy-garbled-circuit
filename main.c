@@ -138,3 +138,90 @@ void generate_random_keys(unsigned char keys[2][2][16]) {
     }
   }
 }
+
+/**
+ * Oblivious transfer.
+ * Implements the OT protocol from https://eprint.iacr.org/2015/267.pdf.
+ * @param keys Array of two 16-byte keys.
+ * @param bit The selector bit (0 or 1).
+ * @param result Output 16-byte selected key.
+ */
+void oblivious_transfer(const unsigned char keys[2][16], uint8_t bit, unsigned char result[16]) {
+  BN_CTX *ctx = BN_CTX_new();
+  BIGNUM *p = BN_new();
+  BIGNUM *g = BN_new();
+  BIGNUM *a_priv = BN_new();
+  BIGNUM *b_priv = BN_new();
+  BIGNUM *bit_bn = BN_new();
+  BIGNUM *a_pub = BN_new();
+  BIGNUM *b_pub = BN_new();
+  BIGNUM *a_pub_inverse = BN_new();
+  BIGNUM *tmp = BN_new();
+
+  // Initialize p and g
+  BN_dec2bn(&p, "8232614617976856279072317982427644624595758235537723089819576056282601872542631717078779952011141109568991428115823956738415293901639693425529719101034229");
+  BN_set_word(g, 2);
+
+  // Generate random a_priv and b_priv
+  BN_rand(a_priv, 512, -1, 0);
+  BN_rand(b_priv, 512, -1, 0);
+  BN_set_word(bit_bn, bit);
+
+  // Compute a_pub = g^a_priv mod p
+  BN_mod_exp(a_pub, g, a_priv, p, ctx);
+
+  // Compute b_pub = g^b_priv * a_pub^bit mod p
+  BIGNUM *a_pub_pow_bit = BN_new();
+  BN_mod_exp(a_pub_pow_bit, a_pub, bit_bn, p, ctx);
+
+  BN_mod_exp(tmp, g, b_priv, p, ctx);
+  BN_mod_mul(b_pub, tmp, a_pub_pow_bit, p, ctx);
+
+  // Compute a_pub_inverse = a_pub^{-1} mod p
+  BN_mod_inverse(a_pub_inverse, a_pub, p, ctx);
+
+  // Compute keyr = hash_message(a_pub^{b_priv} mod p)
+  BN_mod_exp(tmp, a_pub, b_priv, p, ctx);
+  unsigned char keyr[16];
+  hash_message(tmp, keyr);
+
+  // Compute hashkey[0] and hashkey[1]
+  unsigned char hashkey[2][16];
+
+  // hashkey[0] = hash_message(b_pub^{a_priv} mod p)
+  BN_mod_exp(tmp, b_pub, a_priv, p, ctx);
+  hash_message(tmp, hashkey[0]);
+
+  // hashkey[1] = hash_message((b_pub^{a_priv} * a_pub^{-a_priv}) mod p)
+  BIGNUM *b_pub_a_priv = BN_new();
+  BN_mod_exp(b_pub_a_priv, b_pub, a_priv, p, ctx);
+
+  BIGNUM *a_pub_inv_a_priv = BN_new();
+  BN_mod_exp(a_pub_inv_a_priv, a_pub_inverse, a_priv, p, ctx);
+
+  BN_mod_mul(tmp, b_pub_a_priv, a_pub_inv_a_priv, p, ctx);
+  hash_message(tmp, hashkey[1]);
+
+  // Encrypt keys[0] and keys[1]
+  unsigned char e[2][16];
+  encryption(hashkey[0], keys[0], e[0]);
+  encryption(hashkey[1], keys[1], e[1]);
+
+  // Decrypt e[bit] with keyr
+  decryption(keyr, e[bit], result);
+
+  // Clean up
+  BN_free(p);
+  BN_free(g);
+  BN_free(a_priv);
+  BN_free(b_priv);
+  BN_free(bit_bn);
+  BN_free(a_pub);
+  BN_free(b_pub);
+  BN_free(a_pub_inverse);
+  BN_free(tmp);
+  BN_free(a_pub_pow_bit);
+  BN_free(b_pub_a_priv);
+  BN_free(a_pub_inv_a_priv);
+  BN_CTX_free(ctx);
+}
