@@ -29,3 +29,28 @@ void key_derivation(const unsigned char key1[16], const unsigned char key2[16], 
 
   EVP_MD_CTX_free(mdctx);
 }
+
+/**
+ * Padding function.
+ * Pads a single bit into a 16-byte block.
+ * @param bit The bit to pad (0 or 1).
+ * @param result Output 16-byte padded block.
+ */
+void pad(uint8_t bit, unsigned char result[16]) {
+  result[0] = bit;
+  memset(result + 1, 0x0F, 15);
+}
+
+/**
+ * Unpad function.
+ * Checks if the padded block is valid and returns the bit.
+ * @param padded_bit The 16-byte padded block.
+ * @return The original bit (0 or 1) if valie, -1 otherwise.
+ */
+int unpad(const unsigned char padded_bit[16]) {
+  for (int i = 1; i < 16; ++i) {
+    if (padded_bit[i] != 0x0F)
+      return -1;
+  }
+  return padded_bit[0];
+}
