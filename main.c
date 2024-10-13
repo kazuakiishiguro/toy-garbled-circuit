@@ -256,3 +256,76 @@ void garbled_circuit(const unsigned char keys[2][2][16], const char *gate, unsig
         memcpy(garbled_values[j], temp, 16);
     }
 }
+
+/**
+ * Main function implementing the garbled circuit protocol.
+ * @param argc Argument count.
+ * @param argv Argument vector.
+ * @return Exit status.
+ */
+int main(int argc, char *argv[]) {
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s garbler|evaluator <bit> <gate>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    uint8_t garbler_bit;
+    uint8_t evaluator_bit;
+    unsigned char keys[2][2][16];
+    unsigned char evaluator_key[16];
+    unsigned char garbled_values[4][16];
+    char *gate = argv[3];
+
+    if (strcmp(argv[1], "garbler") == 0) {
+        // Garbler mode
+        garbler_bit = (uint8_t)atoi(argv[2]);
+
+        // Read four 16-byte keys from user input
+        printf("Enter four 32-digit hexadecimal keys (each key is 16 bytes in hex):\n");
+        for (int i = 0; i < 4; ++i) {
+            char hexkey[33];
+            if (scanf("%32s", hexkey) != 1) {
+                fprintf(stderr, "Error reading key\n");
+                return EXIT_FAILURE;
+            }
+            for (int j = 0; j < 16; ++j) {
+                sscanf(&hexkey[j * 2], "%2hhx", &keys[i >> 1][i & 1][j]);
+            }
+        }
+
+        // Randomly generate evaluator's bit
+        evaluator_bit = rand() % 2;
+    } else {
+        // Evaluator mode
+        evaluator_bit = (uint8_t)atoi(argv[2]);
+
+        // Generate random keys
+        generate_random_keys(keys);
+
+        // Randomly generate garbler's bit
+        garbler_bit = rand() % 2;
+    }
+
+    // Generate garbled circuit
+    garbled_circuit(keys, gate, garbled_values);
+
+    // Evaluator obtains key via oblivious transfer
+    oblivious_transfer(keys[1], evaluator_bit, evaluator_key);
+
+    // Derive encryption key
+    unsigned char encryption_key[16];
+    key_derivation(keys[0][garbler_bit], evaluator_key, encryption_key);
+
+    // Evaluator decrypts garbled values
+    for (int i = 0; i < 4; ++i) {
+        unsigned char decrypted_value[16];
+        decryption(encryption_key, garbled_values[i], decrypted_value);
+        int value = unpad(decrypted_value);
+        if (value != -1) {
+            printf("Result: %d\n", value);
+            break;
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
