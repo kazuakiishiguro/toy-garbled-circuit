@@ -94,3 +94,31 @@ void hash_message(const BIGNUM *message, unsigned char result[16]) {
   EVP_MD_CTX_free(mdctx);
   free(message_bytes);
 }
+
+/**
+ * Generates the truth table for a given gate.
+ * @param gate The logic gate ("AND" or "XOR").
+ * @param table Output 4x3 truth table.
+ */
+void truth_table(const char *gate, uint8_t table[4][3]) {
+  if (strcmp(gate, "AND") == 0) {
+    uint8_t temp_table[4][3] = {
+      {0, 0, 0},
+      {0, 1, 0},
+      {1, 0, 0},
+      {1, 1, 1},
+    };
+    memcpy(table, temp_table, sizeof(temp_table));
+  } else if (strcmp(gate, "XOR") == 0) {
+    uint8_t temp_table[4][3] = {
+      {0, 0, 0},
+      {0, 1, 1},
+      {1, 0, 1},
+      {1, 1, 0},
+    };
+    memcpy(table, temp_table, sizeof(temp_table));
+  } else {
+    fprintf(stderr, "Invalid gate type\n");
+    exit(EXIT_FAILURE);
+  }
+}
