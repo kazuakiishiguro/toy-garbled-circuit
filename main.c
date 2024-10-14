@@ -48,21 +48,126 @@ void pad(uint8_t bit, unsigned char result[16]) {
  * Unpad function.
  * Checks if the padded block is valid and returns the bit.
  * @param padded_bit The 16-byte padded block.
- * @return The original bit (0 or 1) if valie, -1 otherwise.
+ * @return The original bit (0 or 1) if valid, -1 otherwise.
  */
 int unpad(const unsigned char padded_bit[16]) {
   for (int i = 1; i < 16; ++i) {
-    if (padded_bit[i] != 0x0F)
+    if (padded_bit[i] != 0x0F) {
       return -1;
+    }
   }
   return padded_bit[0];
 }
 
-/* TODO: Implement Encryption and Decryption functions */
+/**
+ * AES Encryption function using the EVP API.
+ * Encrypts a 16-byte plaintext using AES-128 ECB mode.
+ * @param key 16-byte encryption key.
+ * @param plaintext 16-byte plaintext block.
+ * @param ciphertext Output 16-byte ciphertext block.
+ */
+void encryption(const unsigned char key[16], const unsigned char plaintext[16], unsigned char ciphertext[16]) {
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  int len;
+
+  if (!ctx) {
+    fprintf(stderr, "Error initializing EVP_CIPHER_CTX\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL)) {
+    fprintf(stderr, "Encryption init failed\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  // Disable padding for fixed-size blocks
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+  if (1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, 16)) {
+    fprintf(stderr, "Encryption update failed\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  if (len != 16) {
+    fprintf(stderr, "Encryption output length mismatch\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  int final_len;
+  if (1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &final_len)) {
+    fprintf(stderr, "Encryption final failed\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  if (final_len != 0) {
+    fprintf(stderr, "Encryption final output length mismatch\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  EVP_CIPHER_CTX_free(ctx);
+}
+
+/**
+ * AES Decryption function using the EVP API.
+ * Decrypts a 16-byte ciphertext using AES-128 ECB mode.
+ * @param key 16-byte decryption key.
+ * @param ciphertext 16-byte ciphertext block.
+ * @param plaintext Output 16-byte plaintext block.
+ */
+void decryption(const unsigned char key[16], const unsigned char ciphertext[16], unsigned char plaintext[16]) {
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  int len;
+
+  if (!ctx) {
+    fprintf(stderr, "Error initializing EVP_CIPHER_CTX\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL)) {
+    fprintf(stderr, "Decryption init failed\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  // Disable padding for fixed-size blocks
+  EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+  if (1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, 16)) {
+    fprintf(stderr, "Decryption update failed\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  if (len != 16) {
+    fprintf(stderr, "Decryption output length mismatch\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  int final_len;
+  if (1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &final_len)) {
+    fprintf(stderr, "Decryption final failed\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  if (final_len != 0) {
+    fprintf(stderr, "Decryption final output length mismatch\n");
+    EVP_CIPHER_CTX_free(ctx);
+    exit(EXIT_FAILURE);
+  }
+
+  EVP_CIPHER_CTX_free(ctx);
+}
 
 /**
  * Hash function.
- * Hashes a big number using SHAEK128 to produce a 16-byte output.
+ * Hashes a big number using SHAKE128 to produce a 16-byte output.
  * @param message The big number to hash.
  * @param result Output 16-byte hash.
  */
