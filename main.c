@@ -1,12 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <openssl/evp.h>
-#include <openssl/aes.h>
+#include <openssl/sha.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
 
 /**
  * Key derivation function.
- * Concatenates two 160byte keys and generates a new 16-byte key using SHAKE128.
+ * Concatenates two 16-byte keys and generates a new 16-byte key using SHAKE128.
  * @param key1 First 16-byte key.
  * @param key2 Second 16-byte key.
  * @param result Output 16-byte derived key.
@@ -25,7 +28,7 @@ void key_derivation(const unsigned char key1[16], const unsigned char key2[16], 
   if (EVP_DigestInit_ex(mdctx, EVP_shake128(), NULL) != 1 ||
       EVP_DigestUpdate(mdctx, concatenated_keys, 32) != 1 ||
       EVP_DigestFinalXOF(mdctx, result, 16) != 1) {
-    fprintf(stderr, "Error during SHAKE128 hasing\n");
+    fprintf(stderr, "Error during SHAKE128 hashing\n");
     EVP_MD_CTX_free(mdctx);
     exit(EXIT_FAILURE);
   }
@@ -191,7 +194,7 @@ void hash_message(const BIGNUM *message, unsigned char result[16]) {
   if (EVP_DigestInit_ex(mdctx, EVP_shake128(), NULL) != 1 ||
       EVP_DigestUpdate(mdctx, message_bytes, message_len) != 1 ||
       EVP_DigestFinalXOF(mdctx, result, 16) != 1) {
-    fprintf(stderr, "Error during SHAKE128 hasing\n");
+    fprintf(stderr, "Error during SHAKE128 hashing\n");
     EVP_MD_CTX_free(mdctx);
     free(message_bytes);
     exit(EXIT_FAILURE);
@@ -212,7 +215,7 @@ void truth_table(const char *gate, uint8_t table[4][3]) {
       {0, 0, 0},
       {0, 1, 0},
       {1, 0, 0},
-      {1, 1, 1},
+      {1, 1, 1}
     };
     memcpy(table, temp_table, sizeof(temp_table));
   } else if (strcmp(gate, "XOR") == 0) {
@@ -220,7 +223,7 @@ void truth_table(const char *gate, uint8_t table[4][3]) {
       {0, 0, 0},
       {0, 1, 1},
       {1, 0, 1},
-      {1, 1, 0},
+      {1, 1, 0}
     };
     memcpy(table, temp_table, sizeof(temp_table));
   } else {
@@ -338,28 +341,28 @@ void oblivious_transfer(const unsigned char keys[2][16], uint8_t bit, unsigned c
  * @param garbled_values Output array of 4 encrypted 16-byte blocks.
  */
 void garbled_circuit(const unsigned char keys[2][2][16], const char *gate, unsigned char garbled_values[4][16]) {
-    uint8_t table[4][3];
-    truth_table(gate, table);
+  uint8_t table[4][3];
+  truth_table(gate, table);
 
-    // Generate encrypted values
-    for (int i = 0; i < 4; ++i) {
-        unsigned char encryption_key[16];
-        key_derivation(keys[0][i >> 1], keys[1][i & 1], encryption_key);
+  // Generate encrypted values
+  for (int i = 0; i < 4; ++i) {
+    unsigned char encryption_key[16];
+    key_derivation(keys[0][i >> 1], keys[1][i & 1], encryption_key);
 
-        unsigned char padded_bit[16];
-        pad(table[i][2], padded_bit);
+    unsigned char padded_bit[16];
+    pad(table[i][2], padded_bit);
 
-        encryption(encryption_key, padded_bit, garbled_values[i]);
-    }
+    encryption(encryption_key, padded_bit, garbled_values[i]);
+  }
 
-    // Shuffle garbled_values
-    for (int i = 3; i > 0; --i) {
-        int j = rand() % (i + 1);
-        unsigned char temp[16];
-        memcpy(temp, garbled_values[i], 16);
-        memcpy(garbled_values[i], garbled_values[j], 16);
-        memcpy(garbled_values[j], temp, 16);
-    }
+  // Shuffle garbled_values
+  for (int i = 3; i > 0; --i) {
+    int j = rand() % (i + 1);
+    unsigned char temp[16];
+    memcpy(temp, garbled_values[i], 16);
+    memcpy(garbled_values[i], garbled_values[j], 16);
+    memcpy(garbled_values[j], temp, 16);
+  }
 }
 
 /**
@@ -369,68 +372,70 @@ void garbled_circuit(const unsigned char keys[2][2][16], const char *gate, unsig
  * @return Exit status.
  */
 int main(int argc, char *argv[]) {
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s garbler|evaluator <bit> <gate>\n", argv[0]);
-        return EXIT_FAILURE;
-    }
+  if (argc < 4) {
+    fprintf(stderr, "Usage: %s garbler|evaluator <bit> <gate>\n", argv[0]);
+    return EXIT_FAILURE;
+  }
 
-    uint8_t garbler_bit;
-    uint8_t evaluator_bit;
-    unsigned char keys[2][2][16];
-    unsigned char evaluator_key[16];
-    unsigned char garbled_values[4][16];
-    char *gate = argv[3];
+  uint8_t garbler_bit;
+  uint8_t evaluator_bit;
+  unsigned char keys[2][2][16];
+  unsigned char evaluator_key[16];
+  unsigned char garbled_values[4][16];
+  char *gate = argv[3];
 
-    if (strcmp(argv[1], "garbler") == 0) {
-        // Garbler mode
-        garbler_bit = (uint8_t)atoi(argv[2]);
+  if (strcmp(argv[1], "garbler") == 0) {
+    // Garbler mode
+    garbler_bit = (uint8_t)atoi(argv[2]);
 
-        // Read four 16-byte keys from user input
-        printf("Enter four 32-digit hexadecimal keys (each key is 16 bytes in hex):\n");
-        for (int i = 0; i < 4; ++i) {
-            char hexkey[33];
-            if (scanf("%32s", hexkey) != 1) {
-                fprintf(stderr, "Error reading key\n");
-                return EXIT_FAILURE;
-            }
-            for (int j = 0; j < 16; ++j) {
-                sscanf(&hexkey[j * 2], "%2hhx", &keys[i >> 1][i & 1][j]);
-            }
-        }
-
-        // Randomly generate evaluator's bit
-        evaluator_bit = rand() % 2;
-    } else {
-        // Evaluator mode
-        evaluator_bit = (uint8_t)atoi(argv[2]);
-
-        // Generate random keys
-        generate_random_keys(keys);
-
-        // Randomly generate garbler's bit
-        garbler_bit = rand() % 2;
-    }
-
-    // Generate garbled circuit
-    garbled_circuit(keys, gate, garbled_values);
-
-    // Evaluator obtains key via oblivious transfer
-    oblivious_transfer(keys[1], evaluator_bit, evaluator_key);
-
-    // Derive encryption key
-    unsigned char encryption_key[16];
-    key_derivation(keys[0][garbler_bit], evaluator_key, encryption_key);
-
-    // Evaluator decrypts garbled values
+    // Read four 16-byte keys from user input
+    printf("Enter four 32-digit hexadecimal keys (each key is 16 bytes in hex):\n");
     for (int i = 0; i < 4; ++i) {
-        unsigned char decrypted_value[16];
-        decryption(encryption_key, garbled_values[i], decrypted_value);
-        int value = unpad(decrypted_value);
-        if (value != -1) {
-            printf("Result: %d\n", value);
-            break;
-        }
+      char hexkey[33];
+      if (scanf("%32s", hexkey) != 1) {
+        fprintf(stderr, "Error reading key\n");
+        return EXIT_FAILURE;
+      }
+      for (int j = 0; j < 16; ++j) {
+        unsigned int byte;
+        sscanf(&hexkey[j * 2], "%2x", &byte);
+        keys[i >> 1][i & 1][j] = (unsigned char)byte;
+      }
     }
 
-    return EXIT_SUCCESS;
+    // Randomly generate evaluator's bit
+    evaluator_bit = rand() % 2;
+  } else {
+    // Evaluator mode
+    evaluator_bit = (uint8_t)atoi(argv[2]);
+
+    // Generate random keys
+    generate_random_keys(keys);
+
+    // Randomly generate garbler's bit
+    garbler_bit = rand() % 2;
+  }
+
+  // Generate garbled circuit
+  garbled_circuit(keys, gate, garbled_values);
+
+  // Evaluator obtains key via oblivious transfer
+  oblivious_transfer(keys[1], evaluator_bit, evaluator_key);
+
+  // Derive encryption key
+  unsigned char encryption_key[16];
+  key_derivation(keys[0][garbler_bit], evaluator_key, encryption_key);
+
+  // Evaluator decrypts garbled values
+  for (int i = 0; i < 4; ++i) {
+    unsigned char decrypted_value[16];
+    decryption(encryption_key, garbled_values[i], decrypted_value);
+    int value = unpad(decrypted_value);
+    if (value != -1) {
+      printf("Result: %d\n", value);
+      break;
+    }
+  }
+
+  return EXIT_SUCCESS;
 }
