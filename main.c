@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -365,6 +366,39 @@ void garbled_circuit(const unsigned char keys[2][2][16], const char *gate, unsig
   }
 }
 
+void run_tests() {
+  /* Test encryption and decryption */
+  {
+    unsigned char key[16];
+    unsigned char plaintext[16];
+    unsigned char ciphertext[16];
+    unsigned char decrypted[16];
+
+    memset(key, 0xAA, 16);
+    memset(plaintext, 0x55, 16);
+
+    encryption(key, plaintext, ciphertext);
+    decryption(key, ciphertext, decrypted);
+
+    assert(memcmp(plaintext, decrypted, 16) == 0);
+  }
+
+  /* Test OT */
+  {
+    unsigned char keys[2][16];
+    unsigned char result[16];
+
+    memset(keys[0], 0x11, 16);
+    memset(keys[1], 0x22, 16);
+
+    oblivious_transfer(keys, 0, result);
+    assert(memcmp(result, keys[0], 16) == 0);
+
+    oblivious_transfer(keys, 1, result);
+    assert(memcmp(result, keys[1], 16) == 0);
+  }
+}
+
 /**
  * Main function implementing the garbled circuit protocol.
  * @param argc Argument count.
@@ -372,6 +406,12 @@ void garbled_circuit(const unsigned char keys[2][2][16], const char *gate, unsig
  * @return Exit status.
  */
 int main(int argc, char *argv[]) {
+
+  if (argc == 2 && strcmp(argv[1], "test") == 0) {
+    run_tests();
+    return EXIT_SUCCESS;
+  }
+
   if (argc < 4) {
     fprintf(stderr, "Usage: %s garbler|evaluator <bit> <gate>\n", argv[0]);
     return EXIT_FAILURE;
