@@ -4,7 +4,7 @@ Implementation of Yao's Gabled Circuit.
 Usage:
 - Compile the code using a compiler with OpenSSL support, for example:
 ```bash
-gcc -o garbled_circuit garbled_circuit.c -lcrypto
+gcc -o garbled_circuit main.c -lcrypto
 ```
 
 - Running the program:
