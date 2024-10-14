@@ -23,6 +23,5 @@ gcc -o garbled_circuit main.c -lcrypto
     - Replace `<bit>` with `0` or `1`.
     - Replace `<gate>` with `AND` or `XOR`.
 
-
 Note:
-The program randomly generates the other party's bit and keys when acting as the evaluator, and requires user input for keys when acting as the garbler.
+> The program randomly generates the other party's bit and keys when acting as the evaluator, and requires user input for keys when acting as the garbler.
