@@ -2,7 +2,7 @@ Implementation of Yao's Gabled Circuit.
 - inspired by (https://github.com/Giapppp/toy-garbled-circuit)
 
 Usage:
-- Compile the code using a compiler with OpenSSL support, for example:
+- Compile the code using a compiler with `OpenSSL` support, for example:
 ```bash
 gcc -o garbled_circuit main.c -lcrypto
 ```
@@ -25,3 +25,8 @@ gcc -o garbled_circuit main.c -lcrypto
 
 Note:
 > The program randomly generates the other party's bit and keys when acting as the evaluator, and requires user input for keys when acting as the garbler.
+
+Test:
+```bash
+./garbled_circuit test
+```
